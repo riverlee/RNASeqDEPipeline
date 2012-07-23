@@ -1,0 +1,8 @@
+#Use data from paper RNA-seq: An assessment of technical reproducibility and comparison with gene expression arrays. Genome Research 2008 Sep;18(9):1509-17. 
+#Here only use data on run 2, with concentration 1.5pm
+#whichend value in 0,1,2; 0 corresponding to $paired=0(single)
+#sample	group	is_paired	whichend	filename
+kidneylane4	0	0	0	/2TB/projects/RNA-Seq/normalization/data/rna_normal/lane/kidney1.5pm_run2_lane4.txt
+kidneylane8	0	0	0	/2TB/projects/RNA-Seq/normalization/data/rna_normal/lane/kidney1.5pm_run2_lane8.txt
+liverlane1	1	0	0	/2TB/projects/RNA-Seq/normalization/data/rna_normal/lane/liver1.5pm_run2_lane1.txt
+liverlane7	1	0	0	/2TB/projects/RNA-Seq/normalization/data/rna_normal/lane/liver1.5pm_run2_lane7.txt

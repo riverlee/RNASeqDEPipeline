@@ -1,0 +1,151 @@
+Differential expressed gene (DEG) report (RNA-Seq) by RNASeqDEPipeline
+========================================================
+<div align='right' style='font-weight: bold;'>Created Time: replacecreatedtime</div>
+********************************************************
+## Table of contents
+1. <a href='#M1' target='_self'> Alignment (Tophat)</a>
+2. <a href='#M2' target='_self'> DEG by Cuffdiff </a>
+3. <a href='#M3' target='_self'> DEG analysis in R </a>
+  1. <a href='#M31' target='_self'> Estimate count level expression </a>
+  2. <a href='#M32' target='_self'> DEG detection by DESeq, edgeR and baySeq</a>
+  3. <a href='#M33' target='_self'> Significant DEG overlaps among different methods </a>
+4. <a href='#M4' target='_self'> Session Info </a>
+
+## <a id='M1'></a> 1. Alignment (Tophat) 
+**[TopHat](http://tophat.cbcb.umd.edu/)** is a fast splice junction mapper for RNA-Seq reads. It aligns RNA-Seq reads to mammalian-sized genomes using the ultra high-throughput short read aligner **[Bowtie](http://bowtie-bio.sourceforge.net/index.shtml)**, and then analyzes the mapping results to identify splice junctions between exons. 
+
+**Running Time**: replacetophatrunningtime
+
+**Running Code**:
+```{r tophat,eval=FALSE,tidy=TRUE}
+replacetophatcode
+```
+
+
+## <a id='M2'></a> 2. DEG by Cuffdiff 
+**[cuffdiff](http://cufflinks.cbcb.umd.edu/manual.html#cuffdiff)** tests for differential expression and is part of **[cufflinks](http://cufflinks.cbcb.umd.edu/)** which assembles transcripts, estimates their abundances, and tests for differential expression and regulation in RNA-Seq samples. 
+
+**Result Files**
+  1. [Differentially expressed genes](DE/cuffdiff/gene_exp.diff)
+  2. [Differentially expressed transcriprts](DE/cuffdiff/isoform_exp.diff)
+
+**Running Time**: replacecuffdiffrunningtime
+
+**Running Code**:
+```{r cuffdiff,eval=FALSE,tidy=TRUE}
+replacecuffdiffcode
+```
+
+## <a id='M3'></a> 3. Differential gene expression in R 
+
+### <a id='M31'></a> 3.1 Estimate count level expression 
+
+**Result Files**
+  1. [Gene count table](DE/R/gene_expr_count.csv)
+  2. [Transcriprt count table](DE/R/transcript_expr_count.csv)
+
+**Running Code**:
+```{r count}
+#For parallel
+suppressPackageStartupMessages(library(multicore))   
+#Functions defined to calculate count level data for gene/transcript
+source("replacebindir/bam2count.R")    
+## parameters
+
+## bamfiles are sorted by groups
+bamfiles<-replacebamfiles
+names(bamfiles)<-replacebamfilenames
+gtffile<-replacegtffile
+threads<-replacethreads
+logfile<-'run.log'
+geneoutput<-'DE/R/gene_expr_count.csv'
+transcriptoutput<-'DE/R/transcript_expr_count.csv'
+
+# Step 1) load gtf
+write.log(msg="Load GTF file...",file=logfile)
+system.time(gr<-gtf2GRangesList(myfile=gtffile))
+
+# Step 2) Loop bamfiles, get count level for both gene and transcript
+write.log(msg="Start to get count level expression from bamfiles",file=logfile)
+system.time(count.list<-mclapply(bamfiles,function(f){
+              write.log(msg=paste("Getting count levele expression from file '",f,"'",sep=""),file=logfile)
+              aln = readBamGappedAlignments(f)
+              r <- mclapply(gr,function(x){getCounts(aln,grangelist=x)},mc.cores=2)
+              },
+             mc.cores=threads))
+
+gene.count<-sapply(count.list,function(x) x$gene)
+transcript.count<-sapply(count.list,function(x) x$transcript)
+
+# Step 3) Write out result
+write.log(msg="Write out count level data into files",file=logfile)
+write.csv(gene.count,file=geneoutput)
+write.csv(transcript.count,file=transcriptoutput)
+
+```
+
+###  3.2 Differential gene expression by DESeq, edgeR, baySeq and TSPM <a id='M32'></a>
+
+**Method brief description**
+  1. **DESeq** --  Simon Anders, Wolfgang Huber: Differential expression analysis for sequence count data. Genome Biology 11 (2010) R106, [doi:10.1186/gb-2010-11-10-r106](http://dx.doi.org/10.1186/gb-2010-11-10-r106)/ [R package at bioconductor](http://bioconductor.org/packages/release/bioc/html/DESeq.html)
+  2. **edgeR** -- Robinson MD, McCarthy DJ, Smyth GK: edgeR: a Bioconductor package for differential expression analysis of digital gene expression data. Bioinformatics (2010), [doi:10.1093/bioinformatics/btp616](http://dx.crossref.org/10.1093%2Fbioinformatics%2Fbtp616) /  [R package at bioconductor](http://bioconductor.org/packages/release/bioc/html/edgeR.html)
+  3. **baySeq** -- Thomas J Hardcastle, Krystyna A Kelly: baySeq: Empirical Bayesian methods for identifying differential expression in sequence count data. BMC Bioinformatics (2010), [doi:10.1186/1471-2105-11-422](http://dx.doi.org/10.1186/1471-2105-11-422) / [R package at bioconductor](http://bioconductor.org/packages/release/bioc/html/baySeq.html)
+  4. **TSPM** -- Paul L. Auer, Rebecca W. Doerge: A Two-Stage Poisson Model for Testing RNA-Seq Data. Statistical Applications in Genetics and Molecular Biology (2011), [doi: 10.2202/1544-6115.1627](http://dx.doi.org/10.2202/1544-6115.1627) / [R Code](http://www.stat.purdue.edu/~doerge/software/TSPM.R)
+
+**Result Files**
+  1. [DE genes by R](DE/R/de_gene_expr_count.csv)
+  2. [DE transcriprts by R](DE/R/de_transcript_expr_count.csv)
+
+**Running Code**:
+
+```{r de}
+source("replacebindir/DEUtil.R")
+group<-replacegroup
+mc.cores<-4
+degeneoutfile<-"DE/R/de_gene_expr_count.csv"
+detranscriptoutfile<-"DE/R/de_transcript_expr_count.csv"
+
+## Do differential gene expression
+countData<-read.csv("DE/R/gene_expr_count.csv",row.names=1)
+system.time(wrapFourDE(countData,group,degeneoutfile,mc.cores=mc.cores))
+
+## Do differentail transcript expression
+countData<-read.csv("DE/R/transcript_expr_count.csv",row.names=1)
+system.time(wrapFourDE(countData,group,detranscriptoutfile,mc.cores=mc.cores))
+```
+
+### 3.3 Significant DEG overlaps among different methods <a id='M33'></a>
+This module lists all the significant genes and transcript among all the methods at FDR<=0.1
+**Result Files**
+  1. [Overlapped DE genes among all the methods](DE/R/overlapped_de_gene_expr_count.csv)
+  2. [Overlapped DE transcriprts among all the methods](DE/R/overlapped_de_transcript_expr_count.csv)
+  3. [All DE genes](DE/R/all_de_gene_expr_count.csv)
+  4. [All DE transcriprts](DE/R/all_de_transcript_expr_count.csv)
+  
+**Running Code**:
+```{r overlap}
+source("replacebindir/seeOverlaps.R")
+#Overlapped DE genes
+cuffdiffFile.gene<-"DE/cuffdiff/gene_exp.diff"
+rdeFile.gene<-"DE/R/de_gene_expr_count.csv"
+allDE.gene.output<-"DE/R/all_de_gene_expr_count.csv"
+overlapDE.gene.output<-"DE/R/overlapped_de_gene_expr_count.csv"
+system.time(seeOverlap(cuffdiffFile=cuffdiffFile.gene,rdeFile=rdeFile.gene,output.all=allDE.gene.output,output.overlap=overlapDE.gene.output,type='genes'))
+```
+```{r overlap3}
+#Overlapped DE transcript
+cuffdiffFile.transcript<-"DE/cuffdiff/isoform_exp.diff"
+rdeFile.transcript<-"DE/R/de_transcript_expr_count.csv"
+allDE.transcript.output<-"DE/R/all_de_transcript_expr_count.csv"
+overlapDE.transcript.output<-"DE/R/overlapped_de_transcript_expr_count.csv"
+system.time(seeOverlap(cuffdiffFile=cuffdiffFile.transcript,rdeFile=rdeFile.transcript,output.all=allDE.transcript.output,output.overlap=overlapDE.transcript.output,type='transcripts'))
+```
+
+## 4. Session Info <a id='M4'></a>
+```{r session}
+sessionInfo()
+```
+
+
+<div style="background-color: #EEE;font-weight: bold;" align='center'>Produced by <a href="https://github.com/riverlee/RNASeqDEPipeline">RNASeqDEPipeline</a> (Jiang Li)</div>
+</body>
