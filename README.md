@@ -1,7 +1,7 @@
 RNASeqDEPipeline (Version 0.1)
 ================
 
-RNA-Seq differential gene expression pipeline 
+RNA-Seq differential gene expression pipeline (Example Report http://rpubs.com/riverlee2008/RNASeqDEPipeline_Example)
 
 ## Table of content
   * Usage
